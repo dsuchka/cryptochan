@@ -1,0 +1,24 @@
+#ifndef __COMMON_H
+#define __COMMON_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdalign.h>
+#include <unistd.h>
+//#include <sys/types.h>
+//#include <sys/socket.h>
+//#include <sys/stat.h>
+//#include <fcntl.h>
+//#include <pwd.h>
+#include <string.h>
+#include <malloc.h>
+#include <errno.h>
+#include <ctype.h>
+//#include <netdb.h>
+//#include <time.h>
+//#include <poll.h>
+//#include <secp256k1.h>
+
+#endif // __COMMON_H

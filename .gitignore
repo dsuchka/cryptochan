@@ -1,0 +1,46 @@
+# autotools configs
+/aclocal.m4
+/autom4te.cache
+/config.h.in
+/config.h
+/config.log
+/config.status
+/config.guess
+/config.sub
+/configure
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+/compile
+
+# generated make files
+Makefile
+Makefile.in
+
+# other dirs
+.libs
+.libs
+.deps
+
+# libtool and object files
+*.lo
+*.la
+*.lai
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.out
+
+# compiled program
+cryptochan
+
+# tmp files
+*~
+*.swp
+*.bak
+*.rej
+*.orig
+
