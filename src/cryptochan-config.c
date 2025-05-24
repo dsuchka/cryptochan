@@ -1,54 +1,9 @@
-#include "cryptochan-config.h"
+#include "common.h"
+
 #include <libconfig.h>
-#include <libbase58.h>
 
-
-void assure_error_desc_empty(char **error_desc)
-{
-    // assure that error_desc does not hold any valid ptr
-    if (*error_desc != NULL) {
-        fprintf(stderr, "PANIC: error_desc ptr = %p (expected NULL)\n", (void*) error_desc);
-        abort();
-    }
-}
-
-
-bool decode_b58_priv_key(const char *encoded_key, uint8_t *data, char **error_desc)
-{
-    __attribute__((unused)) int asp_res;
-    uint8_t buf[44];
-    size_t dsz = sizeof(buf), sz;
-
-    assure_error_desc_empty(error_desc);
-
-    // check size (44 digits max for 32 bytes)
-    if ((sz = strlen(encoded_key)) > 44) {
-        asp_res = asprintf(error_desc,
-            "b58-encoded private key is too large (max 44 b58 digits), got: %s (%ld digits)",
-            encoded_key, sz);
-        return false;
-    }
-
-    // decode b58
-    if (!b58tobin((void*) buf, &dsz, encoded_key, sz)) {
-        asp_res = asprintf(error_desc, "wrong b58-encoded private key: bad base58");
-        return false;
-    }
-
-    // assure that size is correct
-    if (dsz != 32) {
-        asp_res = asprintf(error_desc,
-            "b58-decoded private key has incorrect length: expected 32 bytes, got: %ld",
-            dsz);
-        return false;
-    }
-
-    // copy buffer to dest
-    memcpy(data, buf, dsz);
-
-    // all done
-    return true;
-}
+#include "cryptochan-config.h"
+#include "ec_helper.h"
 
 
 bool cryptochan_config_parse_sock_addr(
@@ -89,6 +44,7 @@ bool cryptochan_config_parse_sock_addr(
     return true;
 }
 
+
 bool cryptochan_config_parse_client(
     config_setting_t *setting,
     cryptochan_config_client_t *cc_client,
@@ -116,6 +72,7 @@ bool cryptochan_config_parse_client(
     return true;
 }
 
+
 bool cryptochan_config_parse_server(
     config_setting_t *setting,
     cryptochan_config_server_t *cc_server,
@@ -141,6 +98,7 @@ bool cryptochan_config_parse_server(
     // all done
     return true;
 }
+
 
 bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_filepath)
 {
@@ -168,15 +126,41 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
                 config_filepath);
             break;
         }
-        if (!decode_b58_priv_key(cc_config->private_key, cc_config->private_key_data, &error_desc)) {
+        if (!decode_b58_privkey(
+                cc_config->private_key, cc_config->private_key_data, &error_desc)) {
             fprintf(stderr, "Bad private-key setting in config file `%s': %s\n",
                 config_filepath, error_desc);
             break;
         }
 
-        // parse config setting: public-key (optional, must be )
+        // parse config setting: public-key (optional, must belong to the private key)
         if (config_lookup_string(&config, "public-key", &(cc_config->public_key))) {
-            // TODO
+            if (!decode_b58_pubkey(
+                    cc_config->public_key, &(cc_config->public_key_data), &error_desc)) {
+                fprintf(stderr, "Bad public-key setting in config file `%s': %s\n",
+                    config_filepath, error_desc);
+                break;
+            }
+
+            if (!check_pubkey_belongs_to_privkey(
+                    cc_config->private_key_data, &(cc_config->public_key_data))) {
+                fprintf(stderr, "Bad public-key setting in config file `%s': "
+                    "does not belong to the private key\n", config_filepath);
+                for (;;) {
+                    secp256k1_pubkey orig_pubkey;
+                    if (!privkey_to_pubkey(cc_config->private_key_data, &orig_pubkey)) { break; }
+                    char *orig_pubkey_b58 = pubkey_to_b58enc_form(&orig_pubkey);
+                    if (orig_pubkey_b58 != NULL) {
+                        fprintf(stderr, "  * given key = %s\n", cc_config->public_key);
+                        fprintf(stderr, "  * valid key = %s\n", orig_pubkey_b58);
+                        free(orig_pubkey_b58);
+                    } else {
+                        fprintf(stderr, "ERROR: could not encode valid public key");
+                    }
+                    break;
+                }
+                break;
+            }
         }
 
         // parse client settings (if any)

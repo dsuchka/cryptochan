@@ -2,6 +2,7 @@
 #define __CRYPTOCHAN_CONFIG_H
 
 #include "common.h"
+#include <secp256k1.h>
 
 typedef struct __cryptochan_config_sock_addr {
     const char* host;
@@ -13,14 +14,14 @@ typedef struct __cryptochan_config_client {
     cryptochan_config_sock_addr_t listen;
     cryptochan_config_sock_addr_t target;
     const char *server_public_key;
-    alignas(32) uint8_t server_public_key_data[64];
+    alignas(32) secp256k1_pubkey server_public_key_data;
 } cryptochan_config_client_t;
 
 typedef struct __cryptochan_config_server_allowed_client {
     const char *name;
     const char *public_key;
     struct __cryptochan_config_server_allowed_client *next;
-    alignas(32) uint8_t public_key_data[64];
+    alignas(32) secp256k1_pubkey public_key_data;
 } cryptochan_config_server_allowed_client_t;
 
 typedef struct __cryptochan_config_server {
@@ -36,7 +37,7 @@ typedef struct __cryptochan_config {
     cryptochan_config_client_t client;
     cryptochan_config_server_t server;
     alignas(32) uint8_t private_key_data[32];
-    alignas(32) uint8_t public_key_data[64];
+    alignas(32) secp256k1_pubkey public_key_data;
 } cryptochan_config_t;
 
 extern bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_filepath);

@@ -19,6 +19,7 @@
 //#include <netdb.h>
 //#include <time.h>
 //#include <poll.h>
-//#include <secp256k1.h>
+
+extern void assure_error_desc_empty(char **error_desc);
 
 #endif // __COMMON_H
