@@ -1,5 +1,7 @@
 #include "cryptochan-config.h"
 #include <libconfig.h>
+#include <libbase58.h>
+
 
 void assure_error_desc_empty(char **error_desc)
 {
@@ -9,6 +11,45 @@ void assure_error_desc_empty(char **error_desc)
         abort();
     }
 }
+
+
+bool decode_b58_priv_key(const char *encoded_key, uint8_t *data, char **error_desc)
+{
+    __attribute__((unused)) int asp_res;
+    uint8_t buf[44];
+    size_t dsz = sizeof(buf), sz;
+
+    assure_error_desc_empty(error_desc);
+
+    // check size (44 digits max for 32 bytes)
+    if ((sz = strlen(encoded_key)) > 44) {
+        asp_res = asprintf(error_desc,
+            "b58-encoded private key is too large (max 44 b58 digits), got: %s (%ld digits)",
+            encoded_key, sz);
+        return false;
+    }
+
+    // decode b58
+    if (!b58tobin((void*) buf, &dsz, encoded_key, sz)) {
+        asp_res = asprintf(error_desc, "wrong b58-encoded private key: bad base58");
+        return false;
+    }
+
+    // assure that size is correct
+    if (dsz != 32) {
+        asp_res = asprintf(error_desc,
+            "b58-decoded private key has incorrect length: expected 32 bytes, got: %ld",
+            dsz);
+        return false;
+    }
+
+    // copy buffer to dest
+    memcpy(data, buf, dsz);
+
+    // all done
+    return true;
+}
+
 
 bool cryptochan_config_parse_sock_addr(
     config_setting_t *root_setting,
@@ -125,6 +166,11 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
         if (!config_lookup_string(&config, "private-key", &(cc_config->private_key))) {
             fprintf(stderr, "Missing private-key setting in config file `%s'\n",
                 config_filepath);
+            break;
+        }
+        if (!decode_b58_priv_key(cc_config->private_key, cc_config->private_key_data, &error_desc)) {
+            fprintf(stderr, "Bad private-key setting in config file `%s': %s\n",
+                config_filepath, error_desc);
             break;
         }
 
