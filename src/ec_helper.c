@@ -1,5 +1,8 @@
 #include "ec_helper.h"
 
+#include <libbase58.h>
+
+
 bool decode_b58_privkey(
     const char *encoded_key, uint8_t *private_key_data,
     secp256k1_pubkey *public_key_data, char **error_desc

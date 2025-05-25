@@ -4,8 +4,6 @@
 #include "common.h"
 
 #include <secp256k1.h>
-#include <libbase58.h>
-
 
 extern bool decode_b58_privkey(
     const char *encoded_key, uint8_t *private_key_data,

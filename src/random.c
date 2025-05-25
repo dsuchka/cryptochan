@@ -58,9 +58,22 @@ ssize_t fill_prng_random(uint8_t *buf, size_t max) {
     return filled;
 }
 
-ssize_t fill_random(uint8_t *buf, size_t max) {
+ssize_t fill_random_next(uint8_t *buf, size_t max) {
     return do_use_prng
         ? fill_prng_random(buf, max)
         : getrandom(buf, max, 0);
+}
+
+ssize_t fill_random(uint8_t *buf, size_t max) {
+    ssize_t filled = 0;
+    while (filled < max) {
+        ssize_t n = fill_random_next(buf, max - filled);
+        if (n < 0) {
+            perror("failed to fill random data");
+            return n;
+        }
+        filled += n;
+    }
+    return filled;
 }
 

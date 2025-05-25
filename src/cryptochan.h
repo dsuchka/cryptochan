@@ -8,7 +8,8 @@
 typedef enum __cryptochan_mode {
     NONE = 0,
     CLIENT,
-    SERVER
+    SERVER,
+    KEYGEN,
 } cryptochan_mode_t;
 
 typedef struct __cryptochan_arguments {
