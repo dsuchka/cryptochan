@@ -73,6 +73,7 @@ ssize_t fill_random(uint8_t *buf, size_t max) {
             return n;
         }
         filled += n;
+        buf += n;
     }
     return filled;
 }
