@@ -1,6 +1,9 @@
 #include "ec_helper.h"
 
-bool decode_b58_privkey(const char *encoded_key, uint8_t *dest_seckey, char **error_desc)
+bool decode_b58_privkey(
+    const char *encoded_key, uint8_t *private_key_data,
+    secp256k1_pubkey *public_key_data, char **error_desc
+)
 {
     __attribute__((unused)) int asp_res;
     uint8_t buf[44], *dptr = buf;
@@ -35,7 +38,7 @@ bool decode_b58_privkey(const char *encoded_key, uint8_t *dest_seckey, char **er
     }
 
     // copy buffer to dest
-    memcpy(dest_seckey, dptr, dsz);
+    memcpy(private_key_data, dptr, dsz);
 
 
     /* Verify the decoded secp256k1 secret key */
@@ -45,10 +48,19 @@ bool decode_b58_privkey(const char *encoded_key, uint8_t *dest_seckey, char **er
     bool result = false;
 
     for (;;) {
-        if (!secp256k1_ec_seckey_verify(ctx, dest_seckey)) {
+        if (!secp256k1_ec_seckey_verify(ctx, private_key_data)) {
             asp_res = asprintf(error_desc,
                 "incorrect b58-decoded private key: bad secp256k1 key");
             break;
+        }
+
+        // write its public key data if ptr is not NULL
+        if (public_key_data) {
+            if (!secp256k1_ec_pubkey_create(ctx, public_key_data, private_key_data)) {
+                asp_res = asprintf(error_desc,
+                    "failed to create corresponding public key");
+                break;
+            }
         }
 
         // all done
@@ -64,7 +76,7 @@ bool decode_b58_privkey(const char *encoded_key, uint8_t *dest_seckey, char **er
 }
 
 
-bool decode_b58_pubkey(const char *encoded_key, secp256k1_pubkey *dest_pubkey, char **error_desc)
+bool decode_b58_pubkey(const char *encoded_key, secp256k1_pubkey *public_key_data, char **error_desc)
 {
     __attribute__((unused)) int asp_res;
     uint8_t buf[46], *dptr = buf;
@@ -114,7 +126,7 @@ bool decode_b58_pubkey(const char *encoded_key, secp256k1_pubkey *dest_pubkey, c
     bool result = false;
 
     for (;;) {
-        if (!secp256k1_ec_pubkey_parse(ctx, dest_pubkey, dptr, dsz)) {
+        if (!secp256k1_ec_pubkey_parse(ctx, public_key_data, dptr, dsz)) {
             asp_res = asprintf(error_desc,
                 "incorrect b58-decoded public key: bad secp256k1 pubkey");
             break;

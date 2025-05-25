@@ -104,6 +104,7 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
 {
     bool result = false;
     char *error_desc = NULL;
+    secp256k1_pubkey orig_pubkey;
 
     // config vars
     config_t config;
@@ -127,7 +128,8 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
             break;
         }
         if (!decode_b58_privkey(
-                cc_config->private_key, cc_config->private_key_data, &error_desc)) {
+                cc_config->private_key, cc_config->private_key_data,
+                &orig_pubkey, &error_desc)) {
             fprintf(stderr, "Bad private-key setting in config file `%s': %s\n",
                 config_filepath, error_desc);
             break;
@@ -146,19 +148,17 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
                     cc_config->private_key_data, &(cc_config->public_key_data))) {
                 fprintf(stderr, "Bad public-key setting in config file `%s': "
                     "does not belong to the private key\n", config_filepath);
-                for (;;) {
-                    secp256k1_pubkey orig_pubkey;
-                    if (!privkey_to_pubkey(cc_config->private_key_data, &orig_pubkey)) { break; }
-                    char *orig_pubkey_b58 = pubkey_to_b58enc_form(&orig_pubkey);
-                    if (orig_pubkey_b58 != NULL) {
-                        fprintf(stderr, "  * given key = %s\n", cc_config->public_key);
-                        fprintf(stderr, "  * valid key = %s\n", orig_pubkey_b58);
-                        free(orig_pubkey_b58);
-                    } else {
-                        fprintf(stderr, "ERROR: could not encode valid public key");
-                    }
-                    break;
+
+                // show correct pubkey
+                char *orig_pubkey_b58 = pubkey_to_b58enc_form(&orig_pubkey);
+                if (orig_pubkey_b58 != NULL) {
+                    fprintf(stderr, "  * given key = %s\n", cc_config->public_key);
+                    fprintf(stderr, "  * valid key = %s\n", orig_pubkey_b58);
+                    free(orig_pubkey_b58);
+                } else {
+                    fprintf(stderr, "ERROR: could not encode valid public key");
                 }
+
                 break;
             }
         }
