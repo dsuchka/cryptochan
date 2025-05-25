@@ -1,7 +1,10 @@
-#include <argp.h>
 #include "common.h"
+#include "random.h"
 #include "cryptochan.h"
 #include "cryptochan-config.h"
+
+#include <argp.h>
+
 
 const char *argp_program_version = "cryptochan 1.0.0";
 const char *argp_program_bug_address = "<dsuchka@gmail.com>";
@@ -9,9 +12,10 @@ static char doc[] = "Simple custom crypto-channel like stunnel/socat,"
     " but with no certs (no SSL/TLS), an Ellipic Curve and AES block"
     " ciphers are used instead.";
 static struct argp_option options[] = {
-    { "config", 'C', "FILE", 0, "Path to the configuration file."},
-    { "client", 'c', 0, 0, "Run as client."},
-    { "server", 's', 0, 0, "Run as server."},
+    { "config", 'C', "FILE", 0, "Path to the configuration file." },
+    { "prng", 'P', 0, 0, "Use PRNG instead of /dev/urandom." },
+    { "client", 'c', 0, 0, "Run as client." },
+    { "server", 's', 0, 0, "Run as server." },
     { 0 }
 };
 
@@ -27,6 +31,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
     switch (key) {
         case 'C': {
             arguments->config_file = arg;
+            break;
+        }
+        case 'P': {
+            set_use_prng(true);
             break;
         }
         case 'c': {
