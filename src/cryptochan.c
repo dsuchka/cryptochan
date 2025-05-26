@@ -3,6 +3,8 @@
 #include "cryptochan.h"
 #include "cryptochan-config.h"
 #include "ec_helper.h"
+#include "server.h"
+#include "client.h"
 
 #include <argp.h>
 #include <secp256k1.h>
@@ -53,7 +55,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
         }
         case ARGP_KEY_END: {
             if (arguments->mode == NONE) {
-                argp_error(state, "No CLIENT nor SERVER mode is specified, choose one.\n");
+                argp_error(state, "MODE is not specified.\n");
             }
             if (arguments->config_file == NULL) {
                 arguments->config_file = CRYPTOCHAN_DEFAULT_CONFIG_FILE;
@@ -95,7 +97,15 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    return EXIT_SUCCESS;
+    switch (arguments.mode) {
+        case SERVER:
+            return run_server(&cc_config);
+        case CLIENT:
+            return run_client(&cc_config);
+        default:
+            fprintf(stderr, "Could not determine MODE. Aborting.\n");
+            abort();
+    }
 }
 
 int keygen_display(FILE *file)

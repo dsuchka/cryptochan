@@ -7,13 +7,13 @@
 #include <stdbool.h>
 #include <stdalign.h>
 #include <unistd.h>
+#include <sys/param.h>
 //#include <sys/types.h>
 //#include <sys/socket.h>
 //#include <sys/stat.h>
 //#include <fcntl.h>
 //#include <pwd.h>
 #include <string.h>
-#include <malloc.h>
 #include <errno.h>
 #include <ctype.h>
 //#include <netdb.h>
