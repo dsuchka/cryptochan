@@ -43,4 +43,7 @@ cryptochan
 *.bak
 *.rej
 *.orig
+*.i
+*.s
+*.log
 
