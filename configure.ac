@@ -47,6 +47,9 @@ AC_CHECK_HEADERS([argp.h secp256k1.h libconfig.h])
 AC_HEADER_STDBOOL
 
 # Checks for typedefs, structures, and compiler characteristics.
+AX_CHECK_COMPILE_FLAG([-mavx2], [AVX2_CFLAGS="-mavx2"])
+AX_CHECK_COMPILE_FLAG([-msse2], [SSE2_CFLAGS="-msse2"])
+CFLAGS="$CFLAGS $AVX2_CFLAGS $SSE2_CFLAGS"
 
 # Checks for library functions.
 AC_FUNC_MALLOC
