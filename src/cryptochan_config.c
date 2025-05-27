@@ -15,6 +15,7 @@ bool cryptochan_config_parse_sock_addr(
 {
     config_setting_t *nest_setting;
     __attribute__((unused)) int asp_res;
+    const char *str;
 
     assure_error_desc_empty(error_desc);
 
@@ -25,8 +26,12 @@ bool cryptochan_config_parse_sock_addr(
     }
 
     // parse host
-    if (!config_setting_lookup_string(nest_setting, "host", &(cc_sa->host))) {
+    if (!config_setting_lookup_string(nest_setting, "host", &str)) {
         asp_res = asprintf(error_desc, "incomplete `%s' setting: missing `host'", setting_name);
+        return false;
+    }
+    if (!(cc_sa->host = strdup(str))) {
+        perror("strdup");
         return false;
     }
 
@@ -104,6 +109,7 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
 {
     bool result = false;
     char *error_desc = NULL;
+    const char *str;
     secp256k1_pubkey orig_pubkey;
 
     // config vars
@@ -122,11 +128,16 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
         }
 
         // parse config setting: private-key (mandatory)
-        if (!config_lookup_string(&config, "private-key", &(cc_config->private_key))) {
+        if (!config_lookup_string(&config, "private-key", &str)) {
             fprintf(stderr, "Missing private-key setting in config file `%s'\n",
                 config_filepath);
             break;
         }
+        if (!(cc_config->private_key = strdup(str))) {
+            perror("strdup");
+            break;
+        }
+
         if (!decode_b58_privkey(
                 cc_config->private_key, cc_config->private_key_data,
                 &orig_pubkey, &error_desc)) {
@@ -136,7 +147,12 @@ bool cryptochan_config_load(cryptochan_config_t *cc_config, const char *config_f
         }
 
         // parse config setting: public-key (optional, must belong to the private key)
-        if (config_lookup_string(&config, "public-key", &(cc_config->public_key))) {
+        if (config_lookup_string(&config, "public-key", &str)) {
+            if (!(cc_config->public_key = strdup(str))) {
+                perror("strdup");
+                break;
+            }
+
             if (!decode_b58_pubkey(
                     cc_config->public_key, &(cc_config->public_key_data), &error_desc)) {
                 fprintf(stderr, "Bad public-key setting in config file `%s': %s\n",

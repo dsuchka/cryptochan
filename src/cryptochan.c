@@ -99,13 +99,25 @@ int main(int argc, char **argv)
 
     switch (arguments.mode) {
         case SERVER:
+            if (!cc_config.server.present) {
+                fprintf(stderr, "Cannot run as SERVER: config `%s': missing `server'.\n",
+                    arguments.config_file);
+                break;
+            }
             return run_server(&cc_config);
         case CLIENT:
+            if (!cc_config.client.present) {
+                fprintf(stderr, "Cannot run as CLIENT: config `%s': missing `client'.\n",
+                    arguments.config_file);
+                break;
+            }
             return run_client(&cc_config);
         default:
             fprintf(stderr, "Could not determine MODE. Aborting.\n");
             abort();
     }
+
+    return EXIT_FAILURE;
 }
 
 int keygen_display(FILE *file)
