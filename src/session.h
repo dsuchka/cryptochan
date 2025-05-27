@@ -32,9 +32,9 @@ typedef struct __cryptochan_session {
     uint8_t client_entropy[64];         // 16 for ECDH FP, 3 x 16 for ECDH SS
     uint8_t shared_secret[128];
     cyclic_buffer_t input_buffer;
-    cyclic_buffer_t decode_buffer;
     cyclic_buffer_t output_buffer;
     cyclic_buffer_t encode_buffer;
+    cyclic_buffer_t decode_buffer;
     int state;
 } cryptochan_session_t;
 

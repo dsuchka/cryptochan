@@ -3,5 +3,5 @@ AM_LDFLAGS = @DEPS_LDFLAGS@
 
 bin_PROGRAMS = cryptochan
 cryptochan_SOURCES = cryptochan.c common.c random.c ec_helper.c cryptochan_config.c \
-    client.c server.c session.c cyclic_buffer.c
+    client.c server.c dispatcher.c session.c cyclic_buffer.c
 
