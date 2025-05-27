@@ -2,15 +2,15 @@
 #define __CYCLIC_BUFFER_H
 
 #ifndef CYCLIC_BUFFER_CHUNK_SIZE
-# define CYCLIC_BUFFER_CHUNK_SIZE 0x100
+# define CYCLIC_BUFFER_CHUNK_SIZE 0x1000
 #endif
 
 #ifndef CYCLIC_BUFFER_MAX_SIZE
 # define CYCLIC_BUFFER_MAX_SIZE 0x40000000
 #endif
 
-#if (CYCLIC_BUFFER_CHUNK_SIZE <= 0) || ((CYCLIC_BUFFER_CHUNK_SIZE & 0xFF) != 0)
-# error "CYCLIC_BUFFER_CHUNK_SIZE is not a positive integer multiple of 256"
+#if (CYCLIC_BUFFER_CHUNK_SIZE <= 0) || ((CYCLIC_BUFFER_CHUNK_SIZE & 0xFFF) != 0)
+# error "CYCLIC_BUFFER_CHUNK_SIZE is not a positive integer multiple of 4096 (4 KiB)"
 #endif
 
 

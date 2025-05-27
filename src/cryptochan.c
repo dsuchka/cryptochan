@@ -1,7 +1,7 @@
 #include "common.h"
 #include "random.h"
 #include "cryptochan.h"
-#include "cryptochan-config.h"
+#include "cryptochan_config.h"
 #include "ec_helper.h"
 #include "server.h"
 #include "client.h"

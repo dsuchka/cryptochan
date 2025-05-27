@@ -2,7 +2,7 @@
 
 #include <libconfig.h>
 
-#include "cryptochan-config.h"
+#include "cryptochan_config.h"
 #include "ec_helper.h"
 
 

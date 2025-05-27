@@ -1,6 +1,6 @@
 #include "common.h"
-#include "cyclic-buffer.h"
-#include "max-scalar.h"
+#include "cyclic_buffer.h"
+#include "max_scalar.h"
 
 #include <malloc.h>
 
@@ -120,47 +120,6 @@ uint32_t cyclic_buffer_recode_none(cyclic_buffer_t *buf)
     return size;
 }
 
-void __cyclic_buffer_recode_xor_internal(uint8_t *dptr, uint8_t *mask, uint32_t size)
-{
-    // unroll loop for 4 x max scalars
-    while (size >= sizeof(max_scalar_t) * 4) {
-        register max_scalar_t s0 = MAX_SCALAR_LOAD(dptr + sizeof(max_scalar_t) * 0);
-        register max_scalar_t s1 = MAX_SCALAR_LOAD(dptr + sizeof(max_scalar_t) * 1);
-        register max_scalar_t s2 = MAX_SCALAR_LOAD(dptr + sizeof(max_scalar_t) * 2);
-        register max_scalar_t s3 = MAX_SCALAR_LOAD(dptr + sizeof(max_scalar_t) * 3);
-
-        register max_scalar_t m0 = MAX_SCALAR_LOAD(mask + sizeof(max_scalar_t) * 0);
-        register max_scalar_t m1 = MAX_SCALAR_LOAD(mask + sizeof(max_scalar_t) * 1);
-        register max_scalar_t m2 = MAX_SCALAR_LOAD(mask + sizeof(max_scalar_t) * 2);
-        register max_scalar_t m3 = MAX_SCALAR_LOAD(mask + sizeof(max_scalar_t) * 3);
-
-        MAX_SCALAR_STORE(dptr + sizeof(max_scalar_t) * 0, MAX_SCALAR_XOR(s0, m0));
-        MAX_SCALAR_STORE(dptr + sizeof(max_scalar_t) * 1, MAX_SCALAR_XOR(s1, m1));
-        MAX_SCALAR_STORE(dptr + sizeof(max_scalar_t) * 2, MAX_SCALAR_XOR(s2, m2));
-        MAX_SCALAR_STORE(dptr + sizeof(max_scalar_t) * 3, MAX_SCALAR_XOR(s3, m3));
-
-        size -= sizeof(max_scalar_t) * 4;
-        dptr += sizeof(max_scalar_t) * 4;
-        mask += sizeof(max_scalar_t) * 4;
-    }
-
-    // process remaining max scalars
-    while (size >= sizeof(max_scalar_t)) {
-        max_scalar_t s0 = MAX_SCALAR_LOAD(dptr + sizeof(max_scalar_t) * 0);
-        max_scalar_t m0 = MAX_SCALAR_LOAD(mask + sizeof(max_scalar_t) * 0);
-        MAX_SCALAR_STORE(dptr + sizeof(max_scalar_t) * 0, MAX_SCALAR_XOR(s0, m0));
-        size -= sizeof(max_scalar_t);
-        dptr += sizeof(max_scalar_t);
-        mask += sizeof(max_scalar_t);
-    }
-
-    // process remaining bytes
-    while (size-- > 0) {
-        *(dptr++) ^= *(mask++);
-    }
-}
-
-
 uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t size)
 {
     // do nothing when buffer has no data to be recoded
@@ -176,7 +135,7 @@ uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t 
         dptr += buf->total_size;
         uint32_t tail_size = MIN(end_ptr - dptr, to_recode);
 
-        __cyclic_buffer_recode_xor_internal(dptr, mask, tail_size);
+        xor_memory_region(dptr, mask, tail_size);
 
         // rewind dptr and mask, consume recoded size
         dptr = buf->data_ptr;
@@ -185,7 +144,7 @@ uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t 
     }
 
     if (to_recode) {
-        __cyclic_buffer_recode_xor_internal(dptr, mask, to_recode);
+        xor_memory_region(dptr, mask, to_recode);
     }
 
     // advance
