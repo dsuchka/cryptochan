@@ -1,6 +1,5 @@
 #include "common.h"
 #include "cyclic_buffer.h"
-#include "max_scalar.h"
 
 #include <malloc.h>
 
@@ -38,119 +37,112 @@ void cyclic_buffer_destroy(cyclic_buffer_t *buf)
     memset(buf, 0, sizeof(cyclic_buffer_t));
 }
 
-void __cyclic_buffer_read_internal(cyclic_buffer_t *buf, uint8_t *dest, uint32_t size)
-{
-    // read data
-    memcpy(dest, buf->data_ptr + buf->read_idx, size);
-
-    // advance
-    buf->available_to_read -= size;
-    buf->available_to_write += size;
-    buf->read_idx += size;
-
-    // restart read_idx when end is reached
-    if (buf->read_idx >= buf->total_size) { buf->read_idx = 0; }
-}
-
-void __cyclic_buffer_write_internal(cyclic_buffer_t *buf, uint8_t *src, uint32_t size)
-{
-    // write data
-    memcpy(buf->data_ptr + buf->write_idx, src, size);
-
-    // advance
-    buf->available_to_write -= size;
-    buf->available_to_recode += size;
-    buf->write_idx += size;
-
-    // restart write_idx when end is reached
-    if (buf->write_idx >= buf->total_size) { buf->write_idx = 0; }
-}
-
 uint32_t cyclic_buffer_read(cyclic_buffer_t *buf, uint8_t *dest, uint32_t max)
 {
+    // get readable size (synchronized)
+    uint32_t available_to_read = atomic_load_explicit(
+        &(buf->available_to_read), memory_order_acquire);
+
     // do nothing when buffer is empty
-    if (buf->available_to_read == 0) { return 0; }
+    if (available_to_read == 0) { return 0; }
 
-    // read till end
-    uint32_t size_till_end = MIN(buf->total_size - buf->read_idx, buf->available_to_read);
-    uint32_t to_read = MIN(size_till_end, max);
-    __cyclic_buffer_read_internal(buf, dest, to_read);
+    // read not more than requested (max size)
+    uint32_t size = MIN(available_to_read, max);
 
-    // finish when dest is full
-    if (to_read == max) { return max; }
-
-    // read remaining (if any)
-    to_read = MIN(buf->available_to_read, max - size_till_end);
-    if (to_read > 0) {
-        __cyclic_buffer_read_internal(buf, dest + size_till_end, to_read);
+    // do read
+    uint32_t next_read_idx = buf->read_idx + size;
+    if (next_read_idx > buf->total_size) {
+        uint32_t size_till_end = buf->total_size - buf->read_idx;
+        next_read_idx = size - size_till_end;
+        memcpy(dest, buf->data_ptr + buf->read_idx, size_till_end);
+        memcpy(dest + size_till_end, buf->data_ptr, next_read_idx);
+    } else {
+        memcpy(dest, buf->data_ptr + buf->read_idx, size);
+        next_read_idx %= buf->total_size;
     }
 
-    // return total read size
-    return size_till_end + to_read;
+    // advance
+    buf->read_idx = next_read_idx;
+    atomic_fetch_add_explicit(&(buf->available_to_write), size, memory_order_relaxed);
+    atomic_fetch_sub_explicit(&(buf->available_to_read), size, memory_order_relaxed);
+
+    // return size of read data
+    return size;
 }
 
 uint32_t cyclic_buffer_write(cyclic_buffer_t *buf, uint8_t *src, uint32_t max)
 {
+    // get writeable size (synchronized)
+    uint32_t available_to_write = atomic_load_explicit(
+        &(buf->available_to_write), memory_order_relaxed);
+
     // do nothing when buffer is full
-    if (buf->available_to_write == 0) { return 0; }
+    if (available_to_write == 0) { return 0; }
 
-    // write till end
-    uint32_t size_till_end = MIN(buf->total_size - buf->write_idx, buf->available_to_write);
-    uint32_t to_write = MIN(size_till_end, max);
-    __cyclic_buffer_write_internal(buf, src, to_write);
+    // write not more than requested (max size)
+    uint32_t size = MIN(available_to_write, max);
 
-    // finish when src is empty
-    if (to_write == max) { return max; }
-
-    // write remaining (if any)
-    to_write = MIN(buf->available_to_write, max - size_till_end);
-    if (to_write > 0) {
-        __cyclic_buffer_write_internal(buf, src + size_till_end, to_write);
+    // do write
+    uint32_t next_write_idx = buf->write_idx + size;
+    if (next_write_idx > buf->total_size) {
+        uint32_t size_till_end = buf->total_size - buf->write_idx;
+        next_write_idx = size - size_till_end;
+        memcpy(buf->data_ptr + buf->write_idx, src, size_till_end);
+        memcpy(buf->data_ptr, src + size_till_end, next_write_idx);
+    } else {
+        memcpy(buf->data_ptr + buf->write_idx, src, size);
+        next_write_idx %= buf->total_size;
     }
 
-    // return total written size
-    return size_till_end + to_write;
+    // advance
+    buf->write_idx = next_write_idx;
+    atomic_fetch_add_explicit(&(buf->available_to_recode), size, memory_order_release);
+    atomic_fetch_sub_explicit(&(buf->available_to_write), size, memory_order_relaxed);
+
+    // return size of written data
+    return size;
 }
 
 uint32_t cyclic_buffer_recode_none(cyclic_buffer_t *buf)
 {
-    uint32_t size = buf->available_to_recode;
-    buf->available_to_read += size;
-    buf->available_to_recode = 0;
+    uint32_t size = atomic_load_explicit(
+        &(buf->available_to_recode), memory_order_relaxed);
+    buf->recode_idx = (buf->recode_idx + size) % buf->total_size;
+    atomic_fetch_add_explicit(&(buf->available_to_read), size, memory_order_relaxed);
+    atomic_store_explicit(&(buf->available_to_recode), 0, memory_order_relaxed);
     return size;
 }
 
-uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t size)
+uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t max)
 {
+    // get recodeable size (synchronized)
+    uint32_t available_to_recode = atomic_load_explicit(
+        &(buf->available_to_recode), memory_order_acquire);
+
     // do nothing when buffer has no data to be recoded
-    if (buf->available_to_recode == 0) { return 0; }
+    if (available_to_recode == 0) { return 0; }
 
-    uint8_t *end_ptr = buf->data_ptr + buf->total_size;
-    uint8_t *dptr = buf->data_ptr + buf->write_idx - buf->available_to_recode;
-    uint32_t to_recode = MIN(buf->available_to_recode, size);
-    size = to_recode; // return value
+    // recode not more than requested (max size)
+    uint32_t size = MIN(available_to_recode, max);
 
-    // fix dptr when out of bounds and process tail data
-    if (dptr < buf->data_ptr) {
-        dptr += buf->total_size;
-        uint32_t tail_size = MIN(end_ptr - dptr, to_recode);
-
-        xor_memory_region(dptr, mask, tail_size);
-
-        // rewind dptr and mask, consume recoded size
-        dptr = buf->data_ptr;
-        to_recode -= tail_size;
-        mask += tail_size;
-    }
-
-    if (to_recode) {
-        xor_memory_region(dptr, mask, to_recode);
+    // do recode (XOR with given mask)
+    uint32_t next_recode_idx = buf->recode_idx + size;
+    if (next_recode_idx > buf->total_size) {
+        uint32_t size_till_end = buf->total_size - buf->recode_idx;
+        next_recode_idx = size - size_till_end;
+        xor_memory_region(buf->data_ptr + buf->recode_idx, mask, size_till_end);
+        xor_memory_region(buf->data_ptr, mask + size_till_end, next_recode_idx);
+    } else {
+        xor_memory_region(buf->data_ptr + buf->recode_idx, mask, size);
+        next_recode_idx %= buf->total_size;
     }
 
     // advance
-    buf->available_to_read += size;
-    buf->available_to_recode -= size;
+    buf->recode_idx = next_recode_idx;
+    atomic_fetch_add_explicit(&(buf->available_to_read), size, memory_order_release);
+    atomic_fetch_sub_explicit(&(buf->available_to_recode), size, memory_order_relaxed);
 
+    // return size of recoded data
     return size;
 }
 

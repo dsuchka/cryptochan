@@ -1,11 +1,16 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdalign.h>
+#include <stdatomic.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <string.h>

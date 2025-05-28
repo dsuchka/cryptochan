@@ -43,8 +43,9 @@ AC_SUBST([DEPS_CFLAGS])
 AC_SUBST([DEPS_LDFLAGS])
 
 # Checks for header files.
-AC_CHECK_HEADERS([argp.h secp256k1.h libconfig.h])
-AC_HEADER_STDBOOL
+AC_CHECK_HEADERS([stdatomic.h argp.h secp256k1.h libconfig.h],,
+    AC_MSG_ERROR([required header file was not found])
+)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AX_CHECK_COMPILE_FLAG([-mavx2], [AVX2_CFLAGS="-mavx2"])
@@ -54,6 +55,9 @@ CFLAGS="$CFLAGS $AVX2_CFLAGS $SSE2_CFLAGS"
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_CHECK_FUNCS([bzero strdup])
+
+# Enable GNU extensions
+AC_DEFINE([_GNU_SOURCE], [], [Enable GNU extensions.])
 
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_OUTPUT
