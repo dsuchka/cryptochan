@@ -31,5 +31,6 @@ extern uint32_t cyclic_buffer_read(cyclic_buffer_t *buf, uint8_t *dest, uint32_t
 extern uint32_t cyclic_buffer_write(cyclic_buffer_t *buf, uint8_t *src, uint32_t max);
 extern uint32_t cyclic_buffer_recode_none(cyclic_buffer_t *buf);
 extern uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *dest, uint8_t *mask, uint32_t max);
+extern uint32_t cyclic_buffer_recode_xor_buf(cyclic_buffer_t *buf, cyclic_buffer_t *mask_buf);
 
 #endif // __CYCLIC_BUFFER_H

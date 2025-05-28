@@ -54,10 +54,14 @@ uint32_t cyclic_buffer_read(cyclic_buffer_t *buf, uint8_t *dest, uint32_t max)
     if (next_read_idx > buf->total_size) {
         uint32_t size_till_end = buf->total_size - buf->read_idx;
         next_read_idx = size - size_till_end;
-        memcpy(dest, buf->data_ptr + buf->read_idx, size_till_end);
-        memcpy(dest + size_till_end, buf->data_ptr, next_read_idx);
+        if (dest) {
+            memcpy(dest, buf->data_ptr + buf->read_idx, size_till_end);
+            memcpy(dest + size_till_end, buf->data_ptr, next_read_idx);
+        }
     } else {
-        memcpy(dest, buf->data_ptr + buf->read_idx, size);
+        if (dest) {
+            memcpy(dest, buf->data_ptr + buf->read_idx, size);
+        }
         next_read_idx %= buf->total_size;
     }
 
@@ -87,10 +91,14 @@ uint32_t cyclic_buffer_write(cyclic_buffer_t *buf, uint8_t *src, uint32_t max)
     if (next_write_idx > buf->total_size) {
         uint32_t size_till_end = buf->total_size - buf->write_idx;
         next_write_idx = size - size_till_end;
-        memcpy(buf->data_ptr + buf->write_idx, src, size_till_end);
-        memcpy(buf->data_ptr, src + size_till_end, next_write_idx);
+        if (src) {
+            memcpy(buf->data_ptr + buf->write_idx, src, size_till_end);
+            memcpy(buf->data_ptr, src + size_till_end, next_write_idx);
+        }
     } else {
-        memcpy(buf->data_ptr + buf->write_idx, src, size);
+        if (src) {
+            memcpy(buf->data_ptr + buf->write_idx, src, size);
+        }
         next_write_idx %= buf->total_size;
     }
 
@@ -130,10 +138,14 @@ uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t 
     if (next_recode_idx > buf->total_size) {
         uint32_t size_till_end = buf->total_size - buf->recode_idx;
         next_recode_idx = size - size_till_end;
-        xor_memory_region(buf->data_ptr + buf->recode_idx, mask, size_till_end);
-        xor_memory_region(buf->data_ptr, mask + size_till_end, next_recode_idx);
+        if (mask) {
+            xor_memory_region(buf->data_ptr + buf->recode_idx, mask, size_till_end);
+            xor_memory_region(buf->data_ptr, mask + size_till_end, next_recode_idx);
+        }
     } else {
-        xor_memory_region(buf->data_ptr + buf->recode_idx, mask, size);
+        if (mask) {
+            xor_memory_region(buf->data_ptr + buf->recode_idx, mask, size);
+        }
         next_recode_idx %= buf->total_size;
     }
 
@@ -143,6 +155,46 @@ uint32_t cyclic_buffer_recode_xor(cyclic_buffer_t *buf, uint8_t *mask, uint32_t 
     atomic_fetch_sub_explicit(&(buf->available_to_recode), size, memory_order_relaxed);
 
     // return size of recoded data
+    return size;
+}
+
+uint32_t cyclic_buffer_recode_xor_buf(cyclic_buffer_t *buf, cyclic_buffer_t *mask_buf)
+{
+    // get recodeable size (synchronized)
+    uint32_t available_to_recode = atomic_load_explicit(
+        &(buf->available_to_recode), memory_order_acquire);
+
+    // do nothing when buffer has no data to be recoded
+    if (available_to_recode == 0) { return 0; }
+
+    // get readable mask size (synchronized)
+    uint32_t mask_available_to_read = atomic_load_explicit(
+        &(mask_buf->available_to_read), memory_order_acquire);
+
+    // do nothing when mask buffer has no data to be read
+    if (mask_available_to_read == 0) { return 0; }
+
+    // recode not more than requested (mask available size)
+    uint32_t size = MIN(available_to_recode, mask_available_to_read);
+
+    // do recode (XOR with given mask)
+    uint32_t next_mask_read_idx = mask_buf->read_idx + size;
+    if (next_mask_read_idx > mask_buf->total_size) {
+        uint32_t size_till_end = mask_buf->total_size - mask_buf->read_idx;
+        next_mask_read_idx = size - size_till_end;
+        cyclic_buffer_recode_xor(buf, mask_buf->data_ptr + mask_buf->read_idx, size_till_end);
+        cyclic_buffer_recode_xor(buf, mask_buf->data_ptr, next_mask_read_idx);
+    } else {
+        next_mask_read_idx %= mask_buf->total_size;
+        cyclic_buffer_recode_xor(buf, mask_buf->data_ptr + mask_buf->read_idx, size);
+    }
+
+    // advance mask buf
+    mask_buf->read_idx = next_mask_read_idx;
+    atomic_fetch_add_explicit(&(mask_buf->available_to_write), size, memory_order_relaxed);
+    atomic_fetch_sub_explicit(&(mask_buf->available_to_read), size, memory_order_relaxed);
+
+    // return size of recoded data (and read from mask buf)
     return size;
 }
 
