@@ -37,6 +37,7 @@ Makefile.in
 # compiled program
 cryptochan
 test_cyclic_buffer
+test_cyclic_queue
 
 # tmp files
 *~

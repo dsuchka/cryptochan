@@ -1,8 +1,6 @@
 #include "common.h"
 #include "cyclic_buffer.h"
 
-#include <malloc.h>
-
 bool cyclic_buffer_init(cyclic_buffer_t *buf, int chunks)
 {
     memset(buf, 0, sizeof(cyclic_buffer_t));
