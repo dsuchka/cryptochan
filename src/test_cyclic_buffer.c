@@ -121,10 +121,7 @@ int run_thread_test()
 void *run_writer(void *arg)
 {
     runner_data_t *info = (runner_data_t*)arg;
-    struct timespec sleep_time;
-
-    sleep_time.tv_sec = 0;
-    sleep_time.tv_nsec = 0;
+    struct timespec sleep_time = {0, 0};
 
     srand(*((unsigned int*)(info->buf)));
 
@@ -197,10 +194,7 @@ void *run_recoder(void *arg)
 void *run_reader(void *arg)
 {
     runner_data_t *info = (runner_data_t*)arg;
-    struct timespec sleep_time;
-
-    sleep_time.tv_sec = 0;
-    sleep_time.tv_nsec = 0;
+    struct timespec sleep_time = {0, 0};
 
     srand(*((unsigned int*)(info->buf)));
 
